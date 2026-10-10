@@ -1,0 +1,1348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Eventra - Event Management System</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/fontsource/fonts/inter@latest/latin-400-normal.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/fontsource/fonts/inter@latest/latin-600-normal.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/fontsource/fonts/inter@latest/latin-700-normal.css">
+<style>
+  * { font-family: 'Inter', sans-serif; }
+  body { background: #0a0a14; color: #e5e7eb; }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: #13131f; }
+  ::-webkit-scrollbar-thumb { background: #2d2d44; border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: #3d3d5a; }
+  .sidebar-item.active { background: linear-gradient(90deg, rgba(139,92,246,0.18), transparent); color: #a78bfa; border-left: 3px solid #8b5cf6; }
+  .sidebar-item:hover:not(.active) { background: rgba(255,255,255,0.04); }
+  .card { background: #13131f; border: 1px solid #1f1f2e; border-radius: 14px; }
+  .btn-primary { background: linear-gradient(135deg, #8b5cf6, #ec4899); transition: all 0.2s; }
+  .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(139,92,246,0.4); }
+  .btn-secondary { background: #1f1f2e; transition: all 0.2s; }
+  .btn-secondary:hover { background: #2a2a3e; }
+  .input-field { background: #0d0d17; border: 1px solid #1f1f2e; color: #e5e7eb; transition: all 0.2s; }
+  .input-field:focus { outline: none; border-color: #8b5cf6; box-shadow: 0 0 0 3px rgba(139,92,246,0.15); }
+  .table-row:hover { background: rgba(255,255,255,0.02); }
+  .badge { padding: 4px 10px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+  .badge-live { background: rgba(239,68,68,0.15); color: #f87171; }
+  .badge-live::before { content: '●'; margin-right: 4px; animation: pulse 1.5s infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+  .badge-upcoming { background: rgba(139,92,246,0.15); color: #a78bfa; }
+  .badge-completed { background: rgba(34,197,94,0.15); color: #4ade80; }
+  .badge-draft { background: rgba(107,114,128,0.15); color: #9ca3af; }
+  .badge-checked { background: rgba(34,197,94,0.15); color: #4ade80; }
+  .badge-pending { background: rgba(234,179,8,0.15); color: #facc15; }
+  .badge-cancelled { background: rgba(239,68,68,0.15); color: #f87171; }
+  .badge-vip { background: linear-gradient(135deg, rgba(234,179,8,0.2), rgba(239,68,68,0.2)); color: #fbbf24; }
+  .badge-general { background: rgba(59,130,246,0.15); color: #60a5fa; }
+  .badge-early { background: rgba(16,185,129,0.15); color: #34d399; }
+  .modal-overlay { background: rgba(0,0,0,0.75); backdrop-filter: blur(6px); }
+  .fade-in { animation: fadeIn 0.3s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  .stat-card { position: relative; overflow: hidden; }
+  .stat-card::before { content: ''; position: absolute; top: 0; right: 0; width: 120px; height: 120px; background: radial-gradient(circle, var(--accent) 0%, transparent 70%); opacity: 0.18; }
+  .event-card { transition: all 0.3s; }
+  .event-card:hover { transform: translateY(-4px); border-color: #8b5cf6; }
+  .event-cover { height: 140px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 54px; position: relative; overflow: hidden; }
+  .event-cover::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 50%, rgba(0,0,0,0.5)); }
+  .calendar-day { aspect-ratio: 1; border: 1px solid #1f1f2e; border-radius: 8px; padding: 6px; font-size: 12px; transition: all 0.15s; cursor: pointer; }
+  .calendar-day:hover { border-color: #8b5cf6; }
+  .calendar-day.today { border-color: #8b5cf6; background: rgba(139,92,246,0.08); }
+  .calendar-day.other-month { opacity: 0.3; }
+  .calendar-event { background: linear-gradient(135deg, #8b5cf6, #ec4899); color: white; padding: 2px 4px; border-radius: 4px; font-size: 9px; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .gradient-text { background: linear-gradient(135deg, #8b5cf6, #ec4899); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .speaker-card:hover { transform: translateY(-4px); border-color: #ec4899; }
+  .speaker-card { transition: all 0.3s; }
+</style>
+</head>
+<body class="min-h-screen">
+<div class="flex min-h-screen">
+  <!-- Sidebar -->
+  <aside class="w-64 bg-[#0d0d17] border-r border-[#1f1f2e] flex flex-col fixed h-screen">
+    <div class="p-6 border-b border-[#1f1f2e]">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center">
+          <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+        </div>
+        <div>
+          <h1 class="text-lg font-bold text-white">Eventra</h1>
+          <p class="text-xs text-gray-500">Event Management</p>
+        </div>
+      </div>
+    </div>
+    <nav class="flex-1 p-4 space-y-1">
+      <div class="sidebar-item active flex items-center gap-3 px-4 py-3 rounded-lg cursor-pointer" data-view="dashboard">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+        <span class="font-medium">Dashboard</span>
+      </div>
+      <div class="sidebar-item flex items-center gap-3 px-4 py-3 rounded-lg cursor-pointer text-gray-400" data-view="events">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+        <span class="font-medium">Events</span>
+      </div>
+      <div class="sidebar-item flex items-center gap-3 px-4 py-3 rounded-lg cursor-pointer text-gray-400" data-view="attendees">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        <span class="font-medium">Attendees</span>
+      </div>
+      <div class="sidebar-item flex items-center gap-3 px-4 py-3 rounded-lg cursor-pointer text-gray-400" data-view="venues">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        <span class="font-medium">Venues</span>
+      </div>
+      <div class="sidebar-item flex items-center gap-3 px-4 py-3 rounded-lg cursor-pointer text-gray-400" data-view="speakers">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/></svg>
+        <span class="font-medium">Speakers</span>
+      </div>
+      <div class="sidebar-item flex items-center gap-3 px-4 py-3 rounded-lg cursor-pointer text-gray-400" data-view="tickets">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z"/></svg>
+        <span class="font-medium">Tickets</span>
+      </div>
+      <div class="sidebar-item flex items-center gap-3 px-4 py-3 rounded-lg cursor-pointer text-gray-400" data-view="calendar">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+        <span class="font-medium">Calendar</span>
+      </div>
+      <div class="sidebar-item flex items-center gap-3 px-4 py-3 rounded-lg cursor-pointer text-gray-400" data-view="analytics">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+        <span class="font-medium">Analytics</span>
+      </div>
+      <div class="sidebar-item flex items-center gap-3 px-4 py-3 rounded-lg cursor-pointer text-gray-400" data-view="settings">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        <span class="font-medium">Settings</span>
+      </div>
+    </nav>
+    <div class="p-4 border-t border-[#1f1f2e]">
+      <div class="flex items-center gap-3 p-3 rounded-lg bg-[#13131f]">
+        <div class="w-9 h-9 rounded-full bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center text-white font-bold text-sm">EM</div>
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-semibold text-white truncate">Emma Martinez</p>
+          <p class="text-xs text-gray-500 truncate">Event Director</p>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="flex-1 ml-64">
+    <header class="bg-[#0d0d17] border-b border-[#1f1f2e] px-8 py-4 sticky top-0 z-30">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 id="pageTitle" class="text-2xl font-bold text-white">Dashboard</h2>
+          <p id="pageSubtitle" class="text-sm text-gray-500">Welcome back! Here's your events overview.</p>
+        </div>
+        <div class="flex items-center gap-4">
+          <div class="relative">
+            <input type="text" placeholder="Search events, attendees..." class="input-field pl-10 pr-4 py-2 rounded-lg text-sm w-64">
+            <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+          </div>
+          <button class="relative p-2 rounded-lg bg-[#13131f] hover:bg-[#1f1f2e] transition">
+            <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+            <span class="absolute top-1 right-1 w-2 h-2 bg-pink-500 rounded-full"></span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <div class="p-8">
+      <!-- Dashboard -->
+      <div id="view-dashboard" class="view fade-in">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div class="stat-card card p-6" style="--accent: #8b5cf6;">
+            <div class="flex items-center justify-between mb-4">
+              <div class="w-12 h-12 rounded-lg bg-violet-500/15 flex items-center justify-center">
+                <svg class="w-6 h-6 text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+              </div>
+              <span class="text-xs font-semibold text-emerald-400">+3 this month</span>
+            </div>
+            <h3 class="text-3xl font-bold text-white" id="stat-events">0</h3>
+            <p class="text-sm text-gray-500 mt-1">Total Events</p>
+          </div>
+          <div class="stat-card card p-6" style="--accent: #ec4899;">
+            <div class="flex items-center justify-between mb-4">
+              <div class="w-12 h-12 rounded-lg bg-pink-500/15 flex items-center justify-center">
+                <svg class="w-6 h-6 text-pink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+              </div>
+              <span class="text-xs font-semibold text-emerald-400">+24.5%</span>
+            </div>
+            <h3 class="text-3xl font-bold text-white" id="stat-attendees">0</h3>
+            <p class="text-sm text-gray-500 mt-1">Total Attendees</p>
+          </div>
+          <div class="stat-card card p-6" style="--accent: #f59e0b;">
+            <div class="flex items-center justify-between mb-4">
+              <div class="w-12 h-12 rounded-lg bg-amber-500/15 flex items-center justify-center">
+                <svg class="w-6 h-6 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z"/></svg>
+              </div>
+              <span class="text-xs font-semibold text-emerald-400">+18.2%</span>
+            </div>
+            <h3 class="text-3xl font-bold text-white" id="stat-tickets">0</h3>
+            <p class="text-sm text-gray-500 mt-1">Tickets Sold</p>
+          </div>
+          <div class="stat-card card p-6" style="--accent: #10b981;">
+            <div class="flex items-center justify-between mb-4">
+              <div class="w-12 h-12 rounded-lg bg-emerald-500/15 flex items-center justify-center">
+                <svg class="w-6 h-6 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              </div>
+              <span class="text-xs font-semibold text-emerald-400">+32.7%</span>
+            </div>
+            <h3 class="text-3xl font-bold text-white">$<span id="stat-revenue">0</span></h3>
+            <p class="text-sm text-gray-500 mt-1">Total Revenue</p>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+          <div class="card p-6 lg:col-span-2">
+            <div class="flex items-center justify-between mb-6">
+              <div>
+                <h3 class="text-lg font-bold text-white">Ticket Sales & Revenue</h3>
+                <p class="text-sm text-gray-500">Performance over the last 6 months</p>
+              </div>
+              <select class="input-field px-3 py-1.5 rounded-lg text-sm">
+                <option>Last 6 months</option>
+                <option>This year</option>
+              </select>
+            </div>
+            <canvas id="salesChart" height="100"></canvas>
+          </div>
+          <div class="card p-6">
+            <h3 class="text-lg font-bold text-white mb-1">Ticket Types</h3>
+            <p class="text-sm text-gray-500 mb-6">Sales distribution</p>
+            <canvas id="ticketTypeChart"></canvas>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div class="card p-6">
+            <div class="flex items-center justify-between mb-6">
+              <h3 class="text-lg font-bold text-white">Upcoming Events</h3>
+              <button onclick="switchView('events')" class="text-xs text-violet-400 hover:underline">View all →</button>
+            </div>
+            <div class="space-y-3" id="upcomingEvents"></div>
+          </div>
+          <div class="card p-6">
+            <div class="flex items-center justify-between mb-6">
+              <h3 class="text-lg font-bold text-white">Recent Registrations</h3>
+              <button onclick="switchView('attendees')" class="text-xs text-violet-400 hover:underline">View all →</button>
+            </div>
+            <div class="space-y-3" id="recentAttendees"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Events -->
+      <div id="view-events" class="view hidden fade-in">
+        <div class="flex items-center justify-between mb-6">
+          <div class="flex items-center gap-3">
+            <div class="relative">
+              <input type="text" id="eventSearch" placeholder="Search events..." class="input-field pl-10 pr-4 py-2 rounded-lg text-sm w-72">
+              <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+            </div>
+            <select id="eventFilter" class="input-field px-3 py-2 rounded-lg text-sm">
+              <option value="all">All Events</option>
+              <option value="live">Live Now</option>
+              <option value="upcoming">Upcoming</option>
+              <option value="completed">Completed</option>
+              <option value="draft">Draft</option>
+            </select>
+          </div>
+          <button onclick="openEventModal()" class="btn-primary px-4 py-2 rounded-lg text-sm font-semibold text-white flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            Create Event
+          </button>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="eventsGrid"></div>
+      </div>
+
+      <!-- Attendees -->
+      <div id="view-attendees" class="view hidden fade-in">
+        <div class="flex items-center justify-between mb-6">
+          <div class="flex items-center gap-3">
+            <div class="relative">
+              <input type="text" id="attendeeSearch" placeholder="Search attendees..." class="input-field pl-10 pr-4 py-2 rounded-lg text-sm w-72">
+              <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+            </div>
+            <select id="attendeeEvent" class="input-field px-3 py-2 rounded-lg text-sm">
+              <option value="all">All Events</option>
+            </select>
+            <select id="attendeeStatus" class="input-field px-3 py-2 rounded-lg text-sm">
+              <option value="all">All Status</option>
+              <option value="checked-in">Checked In</option>
+              <option value="registered">Registered</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
+          </div>
+          <button onclick="openAttendeeModal()" class="btn-primary px-4 py-2 rounded-lg text-sm font-semibold text-white flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            Add Attendee
+          </button>
+        </div>
+        <div class="card overflow-hidden">
+          <table class="w-full">
+            <thead class="bg-[#0d0d17] border-b border-[#1f1f2e]">
+              <tr>
+                <th class="text-left px-6 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Attendee</th>
+                <th class="text-left px-6 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Event</th>
+                <th class="text-left px-6 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Ticket</th>
+                <th class="text-left px-6 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Registered</th>
+                <th class="text-left px-6 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Status</th>
+                <th class="text-right px-6 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="attendeesTable"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Venues -->
+      <div id="view-venues" class="view hidden fade-in">
+        <div class="flex items-center justify-between mb-6">
+          <p class="text-gray-400">Manage your event venues and locations</p>
+          <button onclick="openVenueModal()" class="btn-primary px-4 py-2 rounded-lg text-sm font-semibold text-white flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            Add Venue
+          </button>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="venuesGrid"></div>
+      </div>
+
+      <!-- Speakers -->
+      <div id="view-speakers" class="view hidden fade-in">
+        <div class="flex items-center justify-between mb-6">
+          <p class="text-gray-400">Featured speakers and performers</p>
+          <button onclick="openSpeakerModal()" class="btn-primary px-4 py-2 rounded-lg text-sm font-semibold text-white flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            Add Speaker
+          </button>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6" id="speakersGrid"></div>
+      </div>
+
+      <!-- Tickets -->
+      <div id="view-tickets" class="view hidden fade-in">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <div class="card p-5">
+            <p class="text-xs text-gray-500 uppercase tracking-wider">Total Orders</p>
+            <h3 class="text-2xl font-bold text-white mt-2" id="totalOrders">0</h3>
+          </div>
+          <div class="card p-5">
+            <p class="text-xs text-gray-500 uppercase tracking-wider">Confirmed</p>
+            <h3 class="text-2xl font-bold text-emerald-400 mt-2" id="confirmedOrders">0</h3>
+          </div>
+          <div class="card p-5">
+            <p class="text-xs text-gray-500 uppercase tracking-wider">Pending</p>
+            <h3 class="text-2xl font-bold text-amber-400 mt-2" id="pendingOrders">0</h3>
+          </div>
+          <div class="card p-5">
+            <p class="text-xs text-gray-500 uppercase tracking-wider">Avg Ticket Price</p>
+            <h3 class="text-2xl font-bold text-violet-400 mt-2">$<span id="avgPrice">0</span></h3>
+          </div>
+        </div>
+        <div class="card overflow-hidden">
+          <div class="px-6 py-4 border-b border-[#1f1f2e] flex items-center justify-between">
+            <h3 class="text-lg font-bold text-white">All Orders</h3>
+            <button onclick="openOrderModal()" class="btn-primary px-4 py-2 rounded-lg text-sm font-semibold text-white">New Order</button>
+          </div>
+          <table class="w-full">
+            <thead class="bg-[#0d0d17] border-b border-[#1f1f2e]">
+              <tr>
+                <th class="text-left px-6 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Order ID</th>
+                <th class="text-left px-6 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Customer</th>
+                <th class="text-left px-6 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Event</th>
+                <th class="text-left px-6 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Type</th>
+                <th class="text-left px-6 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Date</th>
+                <th class="text-left px-6 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Status</th>
+                <th class="text-right px-6 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Amount</th>
+              </tr>
+            </thead>
+            <tbody id="ordersTable"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Calendar -->
+      <div id="view-calendar" class="view hidden fade-in">
+        <div class="card p-6">
+          <div class="flex items-center justify-between mb-6">
+            <div class="flex items-center gap-2">
+              <button onclick="changeMonth(-1)" class="btn-secondary p-2 rounded-lg">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+              </button>
+              <h3 class="text-xl font-bold text-white px-4" id="monthLabel">September 2026</h3>
+              <button onclick="changeMonth(1)" class="btn-secondary p-2 rounded-lg">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+              </button>
+              <button onclick="goToday()" class="btn-secondary px-3 py-2 rounded-lg text-sm ml-2">Today</button>
+            </div>
+            <button onclick="openEventModal()" class="btn-primary px-4 py-2 rounded-lg text-sm font-semibold text-white flex items-center gap-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+              Add Event
+            </button>
+          </div>
+          <div class="grid grid-cols-7 gap-2 mb-2">
+            <div class="text-center text-xs font-semibold text-gray-500 py-2">SUN</div>
+            <div class="text-center text-xs font-semibold text-gray-500 py-2">MON</div>
+            <div class="text-center text-xs font-semibold text-gray-500 py-2">TUE</div>
+            <div class="text-center text-xs font-semibold text-gray-500 py-2">WED</div>
+            <div class="text-center text-xs font-semibold text-gray-500 py-2">THU</div>
+            <div class="text-center text-xs font-semibold text-gray-500 py-2">FRI</div>
+            <div class="text-center text-xs font-semibold text-gray-500 py-2">SAT</div>
+          </div>
+          <div class="grid grid-cols-7 gap-2" id="calendarGrid"></div>
+        </div>
+      </div>
+
+      <!-- Analytics -->
+      <div id="view-analytics" class="view hidden fade-in">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          <div class="card p-6">
+            <h3 class="text-lg font-bold text-white mb-6">Event Attendance</h3>
+            <canvas id="attendanceChart" height="150"></canvas>
+          </div>
+          <div class="card p-6">
+            <h3 class="text-lg font-bold text-white mb-6">Revenue by Event Type</h3>
+            <canvas id="revenueByTypeChart" height="150"></canvas>
+          </div>
+        </div>
+        <div class="card p-6">
+          <h3 class="text-lg font-bold text-white mb-6">Monthly Performance</h3>
+          <canvas id="monthlyChart" height="80"></canvas>
+        </div>
+      </div>
+
+      <!-- Settings -->
+      <div id="view-settings" class="view hidden fade-in">
+        <div class="card p-6 max-w-3xl">
+          <h3 class="text-lg font-bold text-white mb-6">Organization Profile</h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="text-sm text-gray-400 mb-2 block">Organization Name</label>
+              <input type="text" value="Eventra Productions" class="input-field w-full px-4 py-2 rounded-lg text-sm">
+            </div>
+            <div>
+              <label class="text-sm text-gray-400 mb-2 block">Contact Email</label>
+              <input type="email" value="hello@eventra.com" class="input-field w-full px-4 py-2 rounded-lg text-sm">
+            </div>
+            <div>
+              <label class="text-sm text-gray-400 mb-2 block">Phone</label>
+              <input type="tel" value="+1 (555) 987-6543" class="input-field w-full px-4 py-2 rounded-lg text-sm">
+            </div>
+            <div>
+              <label class="text-sm text-gray-400 mb-2 block">Currency</label>
+              <select class="input-field w-full px-4 py-2 rounded-lg text-sm">
+                <option>USD ($)</option><option>EUR (€)</option><option>GBP (£)</option>
+              </select>
+            </div>
+            <div class="md:col-span-2">
+              <label class="text-sm text-gray-400 mb-2 block">Address</label>
+              <input type="text" value="789 Event Plaza, San Francisco, CA 94102" class="input-field w-full px-4 py-2 rounded-lg text-sm">
+            </div>
+          </div>
+          <div class="mt-6 flex gap-3">
+            <button class="btn-primary px-6 py-2 rounded-lg text-sm font-semibold text-white">Save Changes</button>
+            <button class="btn-secondary px-6 py-2 rounded-lg text-sm font-semibold text-gray-300">Cancel</button>
+          </div>
+        </div>
+        <div class="card p-6 max-w-3xl mt-6">
+          <h3 class="text-lg font-bold text-white mb-6">Notification Preferences</h3>
+          <div class="space-y-3">
+            <label class="flex items-center justify-between p-4 rounded-lg bg-[#0d0d17] cursor-pointer">
+              <div>
+                <p class="font-semibold text-white">New registration emails</p>
+                <p class="text-xs text-gray-500 mt-1">Get notified when someone registers</p>
+              </div>
+              <input type="checkbox" checked class="w-5 h-5 accent-violet-500">
+            </label>
+            <label class="flex items-center justify-between p-4 rounded-lg bg-[#0d0d17] cursor-pointer">
+              <div>
+                <p class="font-semibold text-white">Event reminders</p>
+                <p class="text-xs text-gray-500 mt-1">Send reminders 24h before events</p>
+              </div>
+              <input type="checkbox" checked class="w-5 h-5 accent-violet-500">
+            </label>
+            <label class="flex items-center justify-between p-4 rounded-lg bg-[#0d0d17] cursor-pointer">
+              <div>
+                <p class="font-semibold text-white">Weekly analytics report</p>
+                <p class="text-xs text-gray-500 mt-1">Receive weekly performance summary</p>
+              </div>
+              <input type="checkbox" class="w-5 h-5 accent-violet-500">
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Event Modal -->
+<div id="eventModal" class="hidden fixed inset-0 z-50 modal-overlay flex items-center justify-center p-4">
+  <div class="card w-full max-w-2xl p-6 fade-in max-h-[90vh] overflow-y-auto">
+    <div class="flex items-center justify-between mb-6">
+      <h3 class="text-lg font-bold text-white" id="eventModalTitle">Create New Event</h3>
+      <button onclick="closeEventModal()" class="text-gray-400 hover:text-white">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <form id="eventForm" class="space-y-4">
+      <input type="hidden" id="eventId">
+      <div>
+        <label class="text-sm text-gray-400 mb-2 block">Event Name</label>
+        <input type="text" id="eventName" required class="input-field w-full px-4 py-2 rounded-lg text-sm">
+      </div>
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="text-sm text-gray-400 mb-2 block">Category</label>
+          <select id="eventCategory" class="input-field w-full px-4 py-2 rounded-lg text-sm">
+            <option>Conference</option><option>Concert</option><option>Workshop</option>
+            <option>Festival</option><option>Exhibition</option><option>Networking</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-sm text-gray-400 mb-2 block">Status</label>
+          <select id="eventStatus" class="input-field w-full px-4 py-2 rounded-lg text-sm">
+            <option value="upcoming">Upcoming</option>
+            <option value="live">Live Now</option>
+            <option value="completed">Completed</option>
+            <option value="draft">Draft</option>
+          </select>
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="text-sm text-gray-400 mb-2 block">Start Date</label>
+          <input type="date" id="eventDate" required class="input-field w-full px-4 py-2 rounded-lg text-sm">
+        </div>
+        <div>
+          <label class="text-sm text-gray-400 mb-2 block">Time</label>
+          <input type="time" id="eventTime" required class="input-field w-full px-4 py-2 rounded-lg text-sm">
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="text-sm text-gray-400 mb-2 block">Venue</label>
+          <select id="eventVenue" class="input-field w-full px-4 py-2 rounded-lg text-sm"></select>
+        </div>
+        <div>
+          <label class="text-sm text-gray-400 mb-2 block">Capacity</label>
+          <input type="number" id="eventCapacity" required class="input-field w-full px-4 py-2 rounded-lg text-sm">
+        </div>
+      </div>
+      <div>
+        <label class="text-sm text-gray-400 mb-2 block">Cover Icon (emoji)</label>
+        <input type="text" id="eventIcon" value="🎉" maxlength="2" class="input-field w-full px-4 py-2 rounded-lg text-sm">
+      </div>
+      <div>
+        <label class="text-sm text-gray-400 mb-2 block">Description</label>
+        <textarea id="eventDesc" rows="3" class="input-field w-full px-4 py-2 rounded-lg text-sm"></textarea>
+      </div>
+      <div class="flex gap-3 pt-2">
+        <button type="submit" class="btn-primary flex-1 px-6 py-2.5 rounded-lg text-sm font-semibold text-white">Save Event</button>
+        <button type="button" onclick="closeEventModal()" class="btn-secondary flex-1 px-6 py-2.5 rounded-lg text-sm font-semibold text-gray-300">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Attendee Modal -->
+<div id="attendeeModal" class="hidden fixed inset-0 z-50 modal-overlay flex items-center justify-center p-4">
+  <div class="card w-full max-w-lg p-6 fade-in">
+    <div class="flex items-center justify-between mb-6">
+      <h3 class="text-lg font-bold text-white">Add Attendee</h3>
+      <button onclick="closeAttendeeModal()" class="text-gray-400 hover:text-white">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <form id="attendeeForm" class="space-y-4">
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="text-sm text-gray-400 mb-2 block">First Name</label>
+          <input type="text" id="attFirst" required class="input-field w-full px-4 py-2 rounded-lg text-sm">
+        </div>
+        <div>
+          <label class="text-sm text-gray-400 mb-2 block">Last Name</label>
+          <input type="text" id="attLast" required class="input-field w-full px-4 py-2 rounded-lg text-sm">
+        </div>
+      </div>
+      <div>
+        <label class="text-sm text-gray-400 mb-2 block">Email</label>
+        <input type="email" id="attEmail" required class="input-field w-full px-4 py-2 rounded-lg text-sm">
+      </div>
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="text-sm text-gray-400 mb-2 block">Event</label>
+          <select id="attEvent" class="input-field w-full px-4 py-2 rounded-lg text-sm"></select>
+        </div>
+        <div>
+          <label class="text-sm text-gray-400 mb-2 block">Ticket Type</label>
+          <select id="attTicket" class="input-field w-full px-4 py-2 rounded-lg text-sm">
+            <option value="General">General - $49</option>
+            <option value="VIP">VIP - $149</option>
+            <option value="Early Bird">Early Bird - $29</option>
+          </select>
+        </div>
+      </div>
+      <div class="flex gap-3 pt-2">
+        <button type="submit" class="btn-primary flex-1 px-6 py-2.5 rounded-lg text-sm font-semibold text-white">Register</button>
+        <button type="button" onclick="closeAttendeeModal()" class="btn-secondary flex-1 px-6 py-2.5 rounded-lg text-sm font-semibold text-gray-300">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Venue Modal -->
+<div id="venueModal" class="hidden fixed inset-0 z-50 modal-overlay flex items-center justify-center p-4">
+  <div class="card w-full max-w-lg p-6 fade-in">
+    <div class="flex items-center justify-between mb-6">
+      <h3 class="text-lg font-bold text-white">Add Venue</h3>
+      <button onclick="closeVenueModal()" class="text-gray-400 hover:text-white">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <form id="venueForm" class="space-y-4">
+      <div>
+        <label class="text-sm text-gray-400 mb-2 block">Venue Name</label>
+        <input type="text" id="venueName" required class="input-field w-full px-4 py-2 rounded-lg text-sm">
+      </div>
+      <div>
+        <label class="text-sm text-gray-400 mb-2 block">Address</label>
+        <input type="text" id="venueAddress" required class="input-field w-full px-4 py-2 rounded-lg text-sm">
+      </div>
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="text-sm text-gray-400 mb-2 block">City</label>
+          <input type="text" id="venueCity" required class="input-field w-full px-4 py-2 rounded-lg text-sm">
+        </div>
+        <div>
+          <label class="text-sm text-gray-400 mb-2 block">Capacity</label>
+          <input type="number" id="venueCapacity" required class="input-field w-full px-4 py-2 rounded-lg text-sm">
+        </div>
+      </div>
+      <div>
+        <label class="text-sm text-gray-400 mb-2 block">Type</label>
+        <select id="venueType" class="input-field w-full px-4 py-2 rounded-lg text-sm">
+          <option>Indoor Hall</option><option>Outdoor Arena</option><option>Conference Center</option>
+          <option>Theater</option><option>Stadium</option><option>Gallery</option>
+        </select>
+      </div>
+      <div class="flex gap-3 pt-2">
+        <button type="submit" class="btn-primary flex-1 px-6 py-2.5 rounded-lg text-sm font-semibold text-white">Save Venue</button>
+        <button type="button" onclick="closeVenueModal()" class="btn-secondary flex-1 px-6 py-2.5 rounded-lg text-sm font-semibold text-gray-300">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Speaker Modal -->
+<div id="speakerModal" class="hidden fixed inset-0 z-50 modal-overlay flex items-center justify-center p-4">
+  <div class="card w-full max-w-lg p-6 fade-in">
+    <div class="flex items-center justify-between mb-6">
+      <h3 class="text-lg font-bold text-white">Add Speaker</h3>
+      <button onclick="closeSpeakerModal()" class="text-gray-400 hover:text-white">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <form id="speakerForm" class="space-y-4">
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="text-sm text-gray-400 mb-2 block">First Name</label>
+          <input type="text" id="spFirst" required class="input-field w-full px-4 py-2 rounded-lg text-sm">
+        </div>
+        <div>
+          <label class="text-sm text-gray-400 mb-2 block">Last Name</label>
+          <input type="text" id="spLast" required class="input-field w-full px-4 py-2 rounded-lg text-sm">
+        </div>
+      </div>
+      <div>
+        <label class="text-sm text-gray-400 mb-2 block">Title / Role</label>
+        <input type="text" id="spTitle" required placeholder="e.g. Keynote Speaker, Musician" class="input-field w-full px-4 py-2 rounded-lg text-sm">
+      </div>
+      <div>
+        <label class="text-sm text-gray-400 mb-2 block">Expertise</label>
+        <input type="text" id="spExpertise" required placeholder="e.g. AI, Leadership, Jazz" class="input-field w-full px-4 py-2 rounded-lg text-sm">
+      </div>
+      <div>
+        <label class="text-sm text-gray-400 mb-2 block">Email</label>
+        <input type="email" id="spEmail" required class="input-field w-full px-4 py-2 rounded-lg text-sm">
+      </div>
+      <div class="flex gap-3 pt-2">
+        <button type="submit" class="btn-primary flex-1 px-6 py-2.5 rounded-lg text-sm font-semibold text-white">Save Speaker</button>
+        <button type="button" onclick="closeSpeakerModal()" class="btn-secondary flex-1 px-6 py-2.5 rounded-lg text-sm font-semibold text-gray-300">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Order Modal -->
+<div id="orderModal" class="hidden fixed inset-0 z-50 modal-overlay flex items-center justify-center p-4">
+  <div class="card w-full max-w-lg p-6 fade-in">
+    <div class="flex items-center justify-between mb-6">
+      <h3 class="text-lg font-bold text-white">New Ticket Order</h3>
+      <button onclick="closeOrderModal()" class="text-gray-400 hover:text-white">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <form id="orderForm" class="space-y-4">
+      <div>
+        <label class="text-sm text-gray-400 mb-2 block">Customer Name</label>
+        <input type="text" id="orderCustomer" required class="input-field w-full px-4 py-2 rounded-lg text-sm">
+      </div>
+      <div>
+        <label class="text-sm text-gray-400 mb-2 block">Event</label>
+        <select id="orderEvent" class="input-field w-full px-4 py-2 rounded-lg text-sm"></select>
+      </div>
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="text-sm text-gray-400 mb-2 block">Ticket Type</label>
+          <select id="orderType" class="input-field w-full px-4 py-2 rounded-lg text-sm">
+            <option value="General" data-price="49">General - $49</option>
+            <option value="VIP" data-price="149">VIP - $149</option>
+            <option value="Early Bird" data-price="29">Early Bird - $29</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-sm text-gray-400 mb-2 block">Quantity</label>
+          <input type="number" id="orderQty" value="1" min="1" required class="input-field w-full px-4 py-2 rounded-lg text-sm">
+        </div>
+      </div>
+      <div>
+        <label class="text-sm text-gray-400 mb-2 block">Status</label>
+        <select id="orderStatus" class="input-field w-full px-4 py-2 rounded-lg text-sm">
+          <option value="confirmed">Confirmed</option>
+          <option value="pending">Pending</option>
+          <option value="cancelled">Cancelled</option>
+        </select>
+      </div>
+      <div class="flex gap-3 pt-2">
+        <button type="submit" class="btn-primary flex-1 px-6 py-2.5 rounded-lg text-sm font-semibold text-white">Create Order</button>
+        <button type="button" onclick="closeOrderModal()" class="btn-secondary flex-1 px-6 py-2.5 rounded-lg text-sm font-semibold text-gray-300">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+const gradients = [
+  'linear-gradient(135deg, #8b5cf6, #ec4899)',
+  'linear-gradient(135deg, #3b82f6, #06b6d4)',
+  'linear-gradient(135deg, #f59e0b, #ef4444)',
+  'linear-gradient(135deg, #10b981, #3b82f6)',
+  'linear-gradient(135deg, #ec4899, #f59e0b)',
+  'linear-gradient(135deg, #a855f7, #3b82f6)',
+  'linear-gradient(135deg, #ef4444, #f59e0b)',
+  'linear-gradient(135deg, #06b6d4, #10b981)'
+];
+
+let events = JSON.parse(localStorage.getItem('evt_events')) || [
+  { id: 1, name: 'Tech Summit 2026', category: 'Conference', status: 'live', date: '2026-09-26', time: '09:00', venue: 'Grand Convention Center', capacity: 1500, icon: '💻', desc: 'Annual technology conference featuring industry leaders.', gradient: gradients[0], sold: 1247 },
+  { id: 2, name: 'Summer Music Festival', category: 'Festival', status: 'upcoming', date: '2026-10-12', time: '16:00', venue: 'Riverside Park Arena', capacity: 8000, icon: '🎵', desc: 'Three days of live music and entertainment.', gradient: gradients[1], sold: 5432 },
+  { id: 3, name: 'UX Design Workshop', category: 'Workshop', status: 'upcoming', date: '2026-10-05', time: '10:00', venue: 'Creative Studio Hall', capacity: 80, icon: '🎨', desc: 'Hands-on workshop for UX professionals.', gradient: gradients[2], sold: 67 },
+  { id: 4, name: 'Startup Networking Night', category: 'Networking', status: 'upcoming', date: '2026-10-18', time: '18:30', venue: 'Skyline Rooftop Lounge', capacity: 200, icon: '🤝', desc: 'Connect with founders and investors.', gradient: gradients[3], sold: 142 },
+  { id: 5, name: 'Art Exhibition: Modern Voices', category: 'Exhibition', status: 'upcoming', date: '2026-11-02', time: '11:00', venue: 'Metropolitan Gallery', capacity: 500, icon: '🖼️', desc: 'Contemporary art showcase.', gradient: gradients[4], sold: 189 },
+  { id: 6, name: 'Rock Legends Concert', category: 'Concert', status: 'upcoming', date: '2026-10-25', time: '20:00', venue: 'Grand Convention Center', capacity: 3000, icon: '🎸', desc: 'An unforgettable night of rock music.', gradient: gradients[5], sold: 2876 },
+  { id: 7, name: 'AI & Future Summit', category: 'Conference', status: 'draft', date: '2026-11-20', time: '09:00', venue: 'Grand Convention Center', capacity: 1000, icon: '🤖', desc: 'Exploring the future of artificial intelligence.', gradient: gradients[6], sold: 0 },
+  { id: 8, name: 'Food & Wine Festival', category: 'Festival', status: 'completed', date: '2026-09-15', time: '12:00', venue: 'Riverside Park Arena', capacity: 2000, icon: '🍷', desc: 'Culinary delights from around the world.', gradient: gradients[7], sold: 1856 }
+];
+
+let attendees = JSON.parse(localStorage.getItem('evt_attendees')) || [
+  { id: 1, first: 'Sarah', last: 'Johnson', email: 'sarah.j@email.com', eventId: 1, ticket: 'VIP', registered: '2026-09-10', status: 'checked-in' },
+  { id: 2, first: 'Michael', last: 'Chen', email: 'm.chen@email.com', eventId: 1, ticket: 'General', registered: '2026-09-12', status: 'checked-in' },
+  { id: 3, first: 'Emma', last: 'Williams', email: 'emma.w@email.com', eventId: 2, ticket: 'VIP', registered: '2026-09-15', status: 'registered' },
+  { id: 4, first: 'James', last: 'Rodriguez', email: 'j.rod@email.com', eventId: 3, ticket: 'Early Bird', registered: '2026-09-18', status: 'registered' },
+  { id: 5, first: 'Olivia', last: 'Martinez', email: 'olivia.m@email.com', eventId: 4, ticket: 'General', registered: '2026-09-20', status: 'registered' },
+  { id: 6, first: 'David', last: 'Kim', email: 'd.kim@email.com', eventId: 1, ticket: 'General', registered: '2026-09-22', status: 'checked-in' },
+  { id: 7, first: 'Sophia', last: 'Brown', email: 'sophia.b@email.com', eventId: 6, ticket: 'VIP', registered: '2026-09-23', status: 'registered' },
+  { id: 8, first: 'Liam', last: 'Taylor', email: 'liam.t@email.com', eventId: 2, ticket: 'General', registered: '2026-09-24', status: 'registered' },
+  { id: 9, first: 'Ava', last: 'Anderson', email: 'ava.a@email.com', eventId: 5, ticket: 'Early Bird', registered: '2026-09-25', status: 'registered' },
+  { id: 10, first: 'Noah', last: 'Thomas', email: 'noah.t@email.com', eventId: 1, ticket: 'VIP', registered: '2026-09-25', status: 'checked-in' },
+  { id: 11, first: 'Isabella', last: 'Jackson', email: 'isa.j@email.com', eventId: 6, ticket: 'General', registered: '2026-09-26', status: 'registered' },
+  { id: 12, first: 'Ethan', last: 'White', email: 'ethan.w@email.com', eventId: 4, ticket: 'VIP', registered: '2026-09-26', status: 'cancelled' }
+];
+
+let venues = JSON.parse(localStorage.getItem('evt_venues')) || [
+  { id: 1, name: 'Grand Convention Center', address: '500 Main Street', city: 'San Francisco', capacity: 3000, type: 'Conference Center' },
+  { id: 2, name: 'Riverside Park Arena', address: '1200 River Road', city: 'San Francisco', capacity: 8000, type: 'Outdoor Arena' },
+  { id: 3, name: 'Creative Studio Hall', address: '88 Art Boulevard', city: 'Oakland', capacity: 150, type: 'Indoor Hall' },
+  { id: 4, name: 'Skyline Rooftop Lounge', address: '1 Market Street, 40th Floor', city: 'San Francisco', capacity: 200, type: 'Indoor Hall' },
+  { id: 5, name: 'Metropolitan Gallery', address: '450 Museum Way', city: 'San Francisco', capacity: 500, type: 'Gallery' }
+];
+
+let speakers = JSON.parse(localStorage.getItem('evt_speakers')) || [
+  { id: 1, first: 'Dr. Elena', last: 'Vasquez', title: 'Keynote Speaker', expertise: 'Artificial Intelligence', email: 'elena@techsummit.com', color: 'from-violet-500 to-pink-500' },
+  { id: 2, first: 'Marcus', last: 'Chen', title: 'Tech Evangelist', expertise: 'Cloud Computing', email: 'marcus@techsummit.com', color: 'from-blue-500 to-cyan-500' },
+  { id: 3, first: 'Sofia', last: 'Laurent', title: 'UX Director', expertise: 'Design Thinking', email: 'sofia@uxworkshop.com', color: 'from-amber-500 to-red-500' },
+  { id: 4, first: 'The Midnight Waves', last: '', title: 'Headliner Band', expertise: 'Indie Rock', email: 'booking@midnightwaves.com', color: 'from-purple-500 to-indigo-500' },
+  { id: 5, first: 'James', last: 'O\'Connor', title: 'Startup Founder', expertise: 'Venture Capital', email: 'james@networking.com', color: 'from-emerald-500 to-teal-500' },
+  { id: 6, first: 'Aria', last: 'Nakamura', title: 'Artist', expertise: 'Contemporary Art', email: 'aria@gallery.com', color: 'from-pink-500 to-rose-500' },
+  { id: 7, first: 'Chef Antonio', last: 'Rossi', expertise: 'Italian Cuisine', title: 'Celebrity Chef', email: 'antonio@foodfest.com', color: 'from-orange-500 to-amber-500' },
+  { id: 8, first: 'Dr. Raj', last: 'Patel', expertise: 'Machine Learning', title: 'AI Researcher', email: 'raj@aisummit.com', color: 'from-cyan-500 to-blue-500' }
+];
+
+let orders = JSON.parse(localStorage.getItem('evt_orders')) || [
+  { id: 'ORD-1001', customer: 'Sarah Johnson', eventId: 1, type: 'VIP', qty: 1, amount: 149, date: '2026-09-10', status: 'confirmed' },
+  { id: 'ORD-1002', customer: 'Michael Chen', eventId: 1, type: 'General', qty: 2, amount: 98, date: '2026-09-12', status: 'confirmed' },
+  { id: 'ORD-1003', customer: 'Emma Williams', eventId: 2, type: 'VIP', qty: 4, amount: 596, date: '2026-09-15', status: 'confirmed' },
+  { id: 'ORD-1004', customer: 'James Rodriguez', eventId: 3, type: 'Early Bird', qty: 1, amount: 29, date: '2026-09-18', status: 'confirmed' },
+  { id: 'ORD-1005', customer: 'Olivia Martinez', eventId: 4, type: 'General', qty: 2, amount: 98, date: '2026-09-20', status: 'pending' },
+  { id: 'ORD-1006', customer: 'David Kim', eventId: 1, type: 'General', qty: 1, amount: 49, date: '2026-09-22', status: 'confirmed' },
+  { id: 'ORD-1007', customer: 'Sophia Brown', eventId: 6, type: 'VIP', qty: 2, amount: 298, date: '2026-09-23', status: 'confirmed' },
+  { id: 'ORD-1008', customer: 'Liam Taylor', eventId: 2, type: 'General', qty: 3, amount: 147, date: '2026-09-24', status: 'confirmed' },
+  { id: 'ORD-1009', customer: 'Ava Anderson', eventId: 5, type: 'Early Bird', qty: 2, amount: 58, date: '2026-09-25', status: 'pending' },
+  { id: 'ORD-1010', customer: 'Noah Thomas', eventId: 1, type: 'VIP', qty: 1, amount: 149, date: '2026-09-25', status: 'confirmed' },
+  { id: 'ORD-1011', customer: 'Isabella Jackson', eventId: 6, type: 'General', qty: 4, amount: 196, date: '2026-09-26', status: 'confirmed' },
+  { id: 'ORD-1012', customer: 'Ethan White', eventId: 4, type: 'VIP', qty: 1, amount: 149, date: '2026-09-26', status: 'cancelled' }
+];
+
+function save() {
+  localStorage.setItem('evt_events', JSON.stringify(events));
+  localStorage.setItem('evt_attendees', JSON.stringify(attendees));
+  localStorage.setItem('evt_venues', JSON.stringify(venues));
+  localStorage.setItem('evt_speakers', JSON.stringify(speakers));
+  localStorage.setItem('evt_orders', JSON.stringify(orders));
+}
+
+function switchView(view) {
+  document.querySelectorAll('.sidebar-item').forEach(i => {
+    i.classList.remove('active');
+    if (i.dataset.view === view) i.classList.add('active');
+  });
+  document.querySelectorAll('.view').forEach(v => v.classList.add('hidden'));
+  document.getElementById('view-' + view).classList.remove('hidden');
+  const titles = {
+    dashboard: ['Dashboard', "Welcome back! Here's your events overview."],
+    events: ['Events', 'Create and manage your upcoming events.'],
+    attendees: ['Attendees', 'Manage registrations and check-ins.'],
+    venues: ['Venues', 'Your event locations and spaces.'],
+    speakers: ['Speakers', 'Featured speakers and performers.'],
+    tickets: ['Tickets', 'Track orders and ticket sales.'],
+    calendar: ['Calendar', 'Visual schedule of all events.'],
+    analytics: ['Analytics', 'Detailed performance insights.'],
+    settings: ['Settings', 'Configure your organization profile.']
+  };
+  document.getElementById('pageTitle').textContent = titles[view][0];
+  document.getElementById('pageSubtitle').textContent = titles[view][1];
+  if (view === 'dashboard') renderDashboard();
+  if (view === 'events') renderEvents();
+  if (view === 'attendees') renderAttendees();
+  if (view === 'venues') renderVenues();
+  if (view === 'speakers') renderSpeakers();
+  if (view === 'tickets') renderOrders();
+  if (view === 'calendar') renderCalendar();
+  if (view === 'analytics') renderAnalytics();
+}
+
+document.querySelectorAll('.sidebar-item').forEach(item => {
+  item.addEventListener('click', () => switchView(item.dataset.view));
+});
+
+let salesChart, ticketTypeChart, attendanceChart, revenueByTypeChart, monthlyChart;
+
+function renderDashboard() {
+  document.getElementById('stat-events').textContent = events.length;
+  document.getElementById('stat-attendees').textContent = attendees.length;
+  document.getElementById('stat-tickets').textContent = events.reduce((s, e) => s + e.sold, 0);
+  const revenue = orders.filter(o => o.status === 'confirmed').reduce((s, o) => s + o.amount, 0);
+  document.getElementById('stat-revenue').textContent = revenue.toLocaleString();
+
+  // Upcoming events
+  const upcoming = events.filter(e => e.status === 'upcoming' || e.status === 'live').slice(0, 4);
+  document.getElementById('upcomingEvents').innerHTML = upcoming.map(e => {
+    const statusBadge = e.status === 'live' ? 'badge-live' : 'badge-upcoming';
+    const statusText = e.status === 'live' ? 'Live Now' : 'Upcoming';
+    return `
+      <div class="flex items-center gap-3 p-3 rounded-lg bg-[#0d0d17]">
+        <div class="w-12 h-12 rounded-lg flex items-center justify-center text-2xl flex-shrink-0" style="background: ${e.gradient}">${e.icon}</div>
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-semibold text-white truncate">${e.name}</p>
+          <p class="text-xs text-gray-500">${new Date(e.date).toLocaleDateString('en-US', {month:'short', day:'numeric'})} • ${e.venue}</p>
+        </div>
+        <span class="badge ${statusBadge}">${statusText}</span>
+      </div>
+    `;
+  }).join('') || '<p class="text-sm text-gray-500 text-center py-8">No upcoming events</p>';
+
+  // Recent attendees
+  const recent = [...attendees].slice(-5).reverse();
+  document.getElementById('recentAttendees').innerHTML = recent.map(a => {
+    const ev = events.find(e => e.id === a.eventId);
+    const statusBadge = a.status === 'checked-in' ? 'badge-checked' : a.status === 'cancelled' ? 'badge-cancelled' : 'badge-pending';
+    const statusText = a.status === 'checked-in' ? 'Checked In' : a.status === 'cancelled' ? 'Cancelled' : 'Registered';
+    return `
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-full bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center text-white font-semibold text-sm">${a.first[0]}${a.last[0]}</div>
+          <div>
+            <p class="text-sm font-semibold text-white">${a.first} ${a.last}</p>
+            <p class="text-xs text-gray-500">${ev ? ev.name : 'Unknown'} • ${a.ticket}</p>
+          </div>
+        </div>
+        <span class="badge ${statusBadge}">${statusText}</span>
+      </div>
+    `;
+  }).join('');
+
+  // Sales chart
+  if (salesChart) salesChart.destroy();
+  const ctx1 = document.getElementById('salesChart').getContext('2d');
+  const gradient = ctx1.createLinearGradient(0, 0, 0, 300);
+  gradient.addColorStop(0, 'rgba(139,92,246,0.4)');
+  gradient.addColorStop(1, 'rgba(139,92,246,0)');
+  const gradient2 = ctx1.createLinearGradient(0, 0, 0, 300);
+  gradient2.addColorStop(0, 'rgba(236,72,153,0.4)');
+  gradient2.addColorStop(1, 'rgba(236,72,153,0)');
+  salesChart = new Chart(ctx1, {
+    type: 'line',
+    data: {
+      labels: ['Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep'],
+      datasets: [
+        { label: 'Tickets Sold', data: [820, 1240, 1580, 2100, 2850, events.reduce((s,e)=>s+e.sold,0)], borderColor: '#8b5cf6', backgroundColor: gradient, fill: true, tension: 0.4, borderWidth: 3, pointBackgroundColor: '#8b5cf6' },
+        { label: 'Revenue ($)', data: [28000, 42000, 51000, 68000, 89000, revenue], borderColor: '#ec4899', backgroundColor: gradient2, fill: true, tension: 0.4, borderWidth: 3, pointBackgroundColor: '#ec4899' }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { labels: { color: '#9ca3af' } } },
+      scales: {
+        y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#6b7280' } },
+        x: { grid: { display: false }, ticks: { color: '#6b7280' } }
+      }
+    }
+  });
+
+  // Ticket type chart
+  if (ticketTypeChart) ticketTypeChart.destroy();
+  const typeCounts = {};
+  orders.filter(o => o.status === 'confirmed').forEach(o => typeCounts[o.type] = (typeCounts[o.type] || 0) + o.qty);
+  ticketTypeChart = new Chart(document.getElementById('ticketTypeChart'), {
+    type: 'doughnut',
+    data: {
+      labels: Object.keys(typeCounts),
+      datasets: [{ data: Object.values(typeCounts), backgroundColor: ['#8b5cf6', '#ec4899', '#10b981'], borderWidth: 0 }]
+    },
+    options: { responsive: true, cutout: '70%', plugins: { legend: { position: 'bottom', labels: { color: '#9ca3af', padding: 12, usePointStyle: true } } } }
+  });
+}
+
+// Events
+function renderEvents() {
+  const search = document.getElementById('eventSearch').value.toLowerCase();
+  const filter = document.getElementById('eventFilter').value;
+  const filtered = events.filter(e => {
+    const match = (e.name + ' ' + e.category).toLowerCase().includes(search);
+    const statusMatch = filter === 'all' || e.status === filter;
+    return match && statusMatch;
+  });
+  document.getElementById('eventsGrid').innerHTML = filtered.map(e => {
+    const statusBadge = e.status === 'live' ? 'badge-live' : e.status === 'upcoming' ? 'badge-upcoming' : e.status === 'completed' ? 'badge-completed' : 'badge-draft';
+    const statusText = e.status === 'live' ? 'Live Now' : e.status.charAt(0).toUpperCase() + e.status.slice(1);
+    const percent = Math.round((e.sold / e.capacity) * 100);
+    return `
+      <div class="event-card card overflow-hidden">
+        <div class="event-cover" style="background: ${e.gradient}">
+          <span style="position: relative; z-index: 1;">${e.icon}</span>
+        </div>
+        <div class="p-5">
+          <div class="flex items-start justify-between mb-3">
+            <div class="flex-1 min-w-0">
+              <h3 class="font-bold text-white truncate">${e.name}</h3>
+              <p class="text-xs text-gray-500 mt-1">${e.category}</p>
+            </div>
+            <span class="badge ${statusBadge} ml-2 flex-shrink-0">${statusText}</span>
+          </div>
+          <div class="space-y-2 text-sm">
+            <div class="flex items-center gap-2 text-gray-400">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+              <span>${new Date(e.date).toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'})} • ${e.time}</span>
+            </div>
+            <div class="flex items-center gap-2 text-gray-400">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/></svg>
+              <span class="truncate">${e.venue}</span>
+            </div>
+          </div>
+          <div class="mt-4 pt-4 border-t border-[#1f1f2e]">
+            <div class="flex justify-between text-xs mb-1.5">
+              <span class="text-gray-400">${e.sold} / ${e.capacity} tickets</span>
+              <span class="text-violet-400 font-semibold">${percent}%</span>
+            </div>
+            <div class="w-full bg-[#1f1f2e] rounded-full h-1.5">
+              <div class="h-1.5 rounded-full bg-gradient-to-r from-violet-500 to-pink-500" style="width: ${percent}%"></div>
+            </div>
+          </div>
+          <div class="flex gap-2 mt-4">
+            <button onclick="editEvent(${e.id})" class="flex-1 btn-secondary px-3 py-1.5 rounded-lg text-xs font-semibold text-gray-300">Edit</button>
+            <button onclick="deleteEvent(${e.id})" class="flex-1 btn-secondary px-3 py-1.5 rounded-lg text-xs font-semibold text-red-400">Delete</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('') || '<p class="text-gray-500 text-center py-12 col-span-3">No events found</p>';
+}
+
+document.getElementById('eventSearch').addEventListener('input', renderEvents);
+document.getElementById('eventFilter').addEventListener('change', renderEvents);
+
+function openEventModal(event = null) {
+  document.getElementById('eventModal').classList.remove('hidden');
+  document.getElementById('eventModalTitle').textContent = event ? 'Edit Event' : 'Create New Event';
+  document.getElementById('eventForm').reset();
+  document.getElementById('eventVenue').innerHTML = venues.map(v => `<option>${v.name}</option>`).join('');
+  if (event) {
+    document.getElementById('eventId').value = event.id;
+    document.getElementById('eventName').value = event.name;
+    document.getElementById('eventCategory').value = event.category;
+    document.getElementById('eventStatus').value = event.status;
+    document.getElementById('eventDate').value = event.date;
+    document.getElementById('eventTime').value = event.time;
+    document.getElementById('eventVenue').value = event.venue;
+    document.getElementById('eventCapacity').value = event.capacity;
+    document.getElementById('eventIcon').value = event.icon;
+    document.getElementById('eventDesc').value = event.desc;
+  } else {
+    document.getElementById('eventDate').value = new Date().toISOString().split('T')[0];
+  }
+}
+function closeEventModal() { document.getElementById('eventModal').classList.add('hidden'); }
+
+function editEvent(id) { const e = events.find(x => x.id === id); if (e) openEventModal(e); }
+function deleteEvent(id) { if (confirm('Delete this event?')) { events = events.filter(e => e.id !== id); save(); renderEvents(); } }
+
+document.getElementById('eventForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const id = document.getElementById('eventId').value;
+  const data = {
+    name: document.getElementById('eventName').value,
+    category: document.getElementById('eventCategory').value,
+    status: document.getElementById('eventStatus').value,
+    date: document.getElementById('eventDate').value,
+    time: document.getElementById('eventTime').value,
+    venue: document.getElementById('eventVenue').value,
+    capacity: parseInt(document.getElementById('eventCapacity').value),
+    icon: document.getElementById('eventIcon').value || '🎉',
+    desc: document.getElementById('eventDesc').value
+  };
+  if (id) {
+    const ev = events.find(x => x.id === parseInt(id));
+    Object.assign(ev, data);
+  } else {
+    data.id = Date.now();
+    data.sold = 0;
+    data.gradient = gradients[Math.floor(Math.random() * gradients.length)];
+    events.push(data);
+  }
+  save(); renderEvents(); closeEventModal();
+});
+
+// Attendees
+function renderAttendees() {
+  const sel = document.getElementById('attendeeEvent');
+  if (sel.options.length <= 1) {
+    sel.innerHTML = '<option value="all">All Events</option>' + events.map(e => `<option value="${e.id}">${e.name}</option>`).join('');
+  }
+  const search = document.getElementById('attendeeSearch').value.toLowerCase();
+  const eventFilter = document.getElementById('attendeeEvent').value;
+  const statusFilter = document.getElementById('attendeeStatus').value;
+  const filtered = attendees.filter(a => {
+    const match = (a.first + ' ' + a.last + ' ' + a.email).toLowerCase().includes(search);
+    const eventMatch = eventFilter === 'all' || a.eventId === parseInt(eventFilter);
+    const statusMatch = statusFilter === 'all' || a.status === statusFilter;
+    return match && eventMatch && statusMatch;
+  });
+  document.getElementById('attendeesTable').innerHTML = filtered.map(a => {
+    const ev = events.find(e => e.id === a.eventId);
+    const ticketBadge = a.ticket === 'VIP' ? 'badge-vip' : a.ticket === 'Early Bird' ? 'badge-early' : 'badge-general';
+    const statusBadge = a.status === 'checked-in' ? 'badge-checked' : a.status === 'cancelled' ? 'badge-cancelled' : 'badge-pending';
+    const statusText = a.status === 'checked-in' ? 'Checked In' : a.status === 'cancelled' ? 'Cancelled' : 'Registered';
+    return `
+      <tr class="table-row border-b border-[#1f1f2e]">
+        <td class="px-6 py-4">
+          <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-full bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center text-white font-semibold text-xs">${a.first[0]}${a.last[0]}</div>
+            <div>
+              <p class="text-sm font-semibold text-white">${a.first} ${a.last}</p>
+              <p class="text-xs text-gray-500">${a.email}</p>
+            </div>
+          </div>
+        </td>
+        <td class="px-6 py-4 text-sm text-gray-300">${ev ? ev.name : 'Unknown'}</td>
+        <td class="px-6 py-4"><span class="badge ${ticketBadge}">${a.ticket}</span></td>
+        <td class="px-6 py-4 text-sm text-gray-400">${a.registered}</td>
+        <td class="px-6 py-4">
+          <span class="badge ${statusBadge}">${statusText}</span>
+          ${a.status !== 'checked-in' && a.status !== 'cancelled' ? `<button onclick="checkIn(${a.id})" class="ml-2 text-xs text-violet-400 hover:underline">Check in</button>` : ''}
+        </td>
+        <td class="px-6 py-4 text-right">
+          <button onclick="deleteAttendee(${a.id})" class="text-gray-400 hover:text-red-500 p-1">
+            <svg class="w-4 h-4 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M9 7V4a2 2 0 012-2h2a2 2 0 012 2v3"/></svg>
+          </button>
+        </td>
+      </tr>
+    `;
+  }).join('') || '<tr><td colspan="6" class="px-6 py-12 text-center text-gray-500">No attendees found</td></tr>';
+}
+
+document.getElementById('attendeeSearch').addEventListener('input', renderAttendees);
+document.getElementById('attendeeEvent').addEventListener('change', renderAttendees);
+document.getElementById('attendeeStatus').addEventListener('change', renderAttendees);
+
+function checkIn(id) { const a = attendees.find(x => x.id === id); if (a) { a.status = 'checked-in'; save(); renderAttendees(); } }
+function deleteAttendee(id) { if (confirm('Remove this attendee?')) { attendees = attendees.filter(a => a.id !== id); save(); renderAttendees(); } }
+
+function openAttendeeModal() {
+  document.getElementById('attendeeModal').classList.remove('hidden');
+  document.getElementById('attendeeForm').reset();
+  document.getElementById('attEvent').innerHTML = events.map(e => `<option value="${e.id}">${e.name}</option>`).join('');
+}
+function closeAttendeeModal() { document.getElementById('attendeeModal').classList.add('hidden'); }
+
+document.getElementById('attendeeForm').addEventListener('submit', e => {
+  e.preventDefault();
+  attendees.push({
+    id: Date.now(),
+    first: document.getElementById('attFirst').value,
+    last: document.getElementById('attLast').value,
+    email: document.getElementById('attEmail').value,
+    eventId: parseInt(document.getElementById('attEvent').value),
+    ticket: document.getElementById('attTicket').value,
+    registered: new Date().toISOString().split('T')[0],
+    status: 'registered'
+  });
+  save(); renderAttendees(); closeAttendeeModal();
+});
+
+// Venues
+function renderVenues() {
+  document.getElementById('venuesGrid').innerHTML = venues.map(v => {
+    const upcomingCount = events.filter(e => e.venue === v.name && (e.status === 'upcoming' || e.status === 'live')).length;
+    return `
+      <div class="event-card card p-6">
+        <div class="flex items-start justify-between mb-4">
+          <div class="w-12 h-12 rounded-lg bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center">
+            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/></svg>
+          </div>
+          <button onclick="deleteVenue(${v.id})" class="text-gray-500 hover:text-red-500">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <h3 class="font-bold text-white text-lg">${v.name}</h3>
+        <p class="text-sm text-violet-400 mt-1">${v.type}</p>
+        <div class="mt-4 pt-4 border-t border-[#1f1f2e] space-y-2 text-sm text-gray-400">
+          <div class="flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+            <span>${v.address}, ${v.city}</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+            <span>Capacity: ${v.capacity.toLocaleString()}</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+            <span>${upcomingCount} upcoming events</span>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function openVenueModal() { document.getElementById('venueModal').classList.remove('hidden'); document.getElementById('venueForm').reset(); }
+function closeVenueModal() { document.getElementById('venueModal').classList.add('hidden'); }
+function deleteVenue(id) { if (confirm('Delete this venue?')) { venues = venues.filter(v => v.id !== id); save(); renderVenues(); } }
+
+document.getElementById('venueForm').addEventListener('submit', e => {
+  e.preventDefault();
+  venues.push({
+    id: Date.now(),
+    name: document.getElementById('venueName').value,
+    address: document.getElementById('venueAddress').value,
+    city: document.getElementById('venueCity').value,
+    capacity: parseInt(document.getElementById('venueCapacity').value),
+    type: document.getElementById('venueType').value
+  });
+  save(); renderVenues(); closeVenueModal();
+});
+
+// Speakers
+function renderSpeakers() {
+  document.getElementById('speakersGrid').innerHTML = speakers.map(s => `
+    <div class="speaker-card card p-6 text-center">
+      <div class="w-20 h-20 rounded-full bg-gradient-to-br ${s.color} flex items-center justify-center text-white font-bold text-2xl mx-auto mb-4">${s.first[0]}${s.last ? s.last[0] : ''}</div>
+      <h3 class="font-bold text-white">${s.first} ${s.last}</h3>
+      <p class="text-sm text-violet-400 mt-1">${s.title}</p>
+      <p class="text-xs text-gray-500 mt-2">${s.expertise}</p>
+      <div class="mt-4 pt-4 border-t border-[#1f1f2e]">
+        <p class="text-xs text-gray-500 truncate">${s.email}</p>
+      </div>
+      <button onclick="deleteSpeaker(${s.id})" class="mt-3 text-xs text-red-400 hover:underline">Remove</button>
+    </div>
+  `).join('');
+}
+
+function openSpeakerModal() { document.getElementById('speakerModal').classList.remove('hidden'); document.getElementById('speakerForm').reset(); }
+function closeSpeakerModal() { document.getElementById('speakerModal').classList.add('hidden'); }
+function deleteSpeaker(id) { if (confirm('Remove this speaker?')) { speakers = speakers.filter(s => s.id !== id); save(); renderSpeakers(); } }
+
+document.getElementById('speakerForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const colors = ['from-violet-500 to-pink-500','from-blue-500 to-cyan-500','from-amber-500 to-red-500','from-emerald-500 to-teal-500','from-purple-500 to-indigo-500'];
+  speakers.push({
+    id: Date.now(),
+    first: document.getElementById('spFirst').value,
+    last: document.getElementById('spLast').value,
+    title: document.getElementById('spTitle').value,
+    expertise: document.getElementById('spExpertise').value,
+    email: document.getElementById('spEmail').value,
+    color: colors[Math.floor(Math.random() * colors.length)]
+  });
+  save(); renderSpeakers(); closeSpeakerModal();
+});
+
+// Orders
+function renderOrders() {
+  const confirmed = orders.filter(o => o.status === 'confirmed');
+  document.getElementById('totalOrders').textContent = orders.length;
+  document.getElementById('confirmedOrders').textContent = confirmed.length;
+  document.getElementById('pendingOrders').textContent = orders.filter(o => o.status === 'pending').length;
+  const avg = confirmed.length ? Math.round(confirmed.reduce((s, o) => s + o.amount / o.qty, 0) / confirmed.length) : 0;
+  document.getElementById('avgPrice').textContent = avg;
+
+  document.getElementById('ordersTable').innerHTML = orders.slice().reverse().map(o => {
+    const ev = events.find(e => e.id === o.eventId);
+    const ticketBadge = o.type === 'VIP' ? 'badge-vip' : o.type === 'Early Bird' ? 'badge-early' : 'badge-general';
+    const statusBadge = o.status === 'confirmed' ? 'badge-checked' : o.status === 'pending' ? 'badge-pending' : 'badge-cancelled';
+    return `
+      <tr class="table-row border-b border-[#1f1f2e]">
+        <td class="px-6 py-4 text-sm font-mono text-violet-400">${o.id}</td>
+        <td class="px-6 py-4 text-sm text-white font-medium">${o.customer}</td>
+        <td class="px-6 py-4 text-sm text-gray-400">${ev ? ev.name : 'Unknown'}</td>
+        <td class="px-6 py-4"><span class="badge ${ticketBadge}">${o.type} × ${o.qty}</span></td>
+        <td class="px-6 py-4 text-sm text-gray-400">${o.date}</td>
+        <td class="px-6 py-4"><span class="badge ${statusBadge}">${o.status}</span></td>
+        <td class="px-6 py-4 text-sm font-bold text-white text-right">$${o.amount}</td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function openOrderModal() {
+  document.getElementById('orderModal').classList.remove('hidden');
+  document.getElementById('orderForm').reset();
+  document.getElementById('orderEvent').innerHTML = events.map(e => `<option value="${e.id}">${e.name}</option>`).join('');
+}
+function closeOrderModal() { document.getElementById('orderModal').classList.add('hidden'); }
+
+document.getElementById('orderForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const type = document.getElementById('orderType').value;
+  const qty = parseInt(document.getElementById('orderQty').value);
+  const prices = { 'General': 49, 'VIP': 149, 'Early Bird': 29 };
+  orders.push({
+    id: 'ORD-' + (1000 + orders.length + 1),
+    customer: document.getElementById('orderCustomer').value,
+    eventId: parseInt(document.getElementById('orderEvent').value),
+    type: type,
+    qty: qty,
+    amount: prices[type] * qty,
+    date: new Date().toISOString().split('T')[0],
+    status: document.getElementById('orderStatus').value
+  });
+  save(); renderOrders(); closeOrderModal();
+});
+
+// Calendar
+let calendarDate = new Date(2026, 8, 1);
+function renderCalendar() {
+  const year = calendarDate.getFullYear();
+  const month = calendarDate.getMonth();
+  document.getElementById('monthLabel').textContent = calendarDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const daysInPrev = new Date(year, month, 0).getDate();
+  const today = new Date();
+  
+  let html = '';
+  for (let i = 0; i < firstDay; i++) {
+    const d = daysInPrev - firstDay + i + 1;
+    html += `<div class="calendar-day other-month"><div class="text-gray-600">${d}</div></div>`;
+  }
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const dayEvents = events.filter(e => e.date === dateStr);
+    const isToday = today.getFullYear() === year && today.getMonth() === month && today.getDate() === d;
+    html += `
+      <div class="calendar-day ${isToday ? 'today' : ''}">
+        <div class="${isToday ? 'text-violet-400 font-bold' : 'text-gray-300'}">${d}</div>
+        ${dayEvents.slice(0, 2).map(e => `<div class="calendar-event" title="${e.name}">${e.icon} ${e.name}</div>`).join('')}
+        ${dayEvents.length > 2 ? `<div class="text-xs text-gray-500 mt-1">+${dayEvents.length - 2} more</div>` : ''}
+      </div>
+    `;
+  }
+  const totalCells = firstDay + daysInMonth;
+  const remaining = (7 - (totalCells % 7)) % 7;
+  for (let i = 1; i <= remaining; i++) {
+    html += `<div class="calendar-day other-month"><div class="text-gray-600">${i}</div></div>`;
+  }
+  document.getElementById('calendarGrid').innerHTML = html;
+}
+function changeMonth(dir) { calendarDate.setMonth(calendarDate.getMonth() + dir); renderCalendar(); }
+function goToday() { calendarDate = new Date(); renderCalendar(); }
+
+// Analytics
+function renderAnalytics() {
+  if (attendanceChart) attendanceChart.destroy();
+  attendanceChart = new Chart(document.getElementById('attendanceChart'), {
+    type: 'bar',
+    data: {
+      labels: events.slice(0, 6).map(e => e.name.length > 15 ? e.name.slice(0, 15) + '...' : e.name),
+      datasets: [{
+        label: 'Attendance',
+        data: events.slice(0, 6).map(e => e.sold),
+        backgroundColor: events.slice(0, 6).map((e, i) => ['#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#3b82f6', '#a855f7'][i]),
+        borderRadius: 8
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#6b7280' } },
+        x: { grid: { display: false }, ticks: { color: '#6b7280', font: { size: 10 } } }
+      }
+    }
+  });
+
+  if (revenueByTypeChart) revenueByTypeChart.destroy();
+  const byCat = {};
+  events.forEach(e => { byCat[e.category] = (byCat[e.category] || 0) + e.sold * 50; });
+  revenueByTypeChart = new Chart(document.getElementById('revenueByTypeChart'), {
+    type: 'pie',
+    data: {
+      labels: Object.keys(byCat),
+      datasets: [{ data: Object.values(byCat), backgroundColor: ['#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#3b82f6', '#a855f7'], borderWidth: 0 }]
+    },
+    options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { color: '#9ca3af', padding: 12, usePointStyle: true } } } }
+  });
+
+  if (monthlyChart) monthlyChart.destroy();
+  monthlyChart = new Chart(document.getElementById('monthlyChart'), {
+    type: 'line',
+    data: {
+      labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep'],
+      datasets: [
+        { label: 'Events', data: [2, 3, 4, 3, 5, 6, 7, 6, events.length], borderColor: '#8b5cf6', backgroundColor: 'rgba(139,92,246,0.1)', fill: true, tension: 0.4, borderWidth: 3 },
+        { label: 'Attendees', data: [180, 320, 480, 520, 780, 1240, 1680, 2100, attendees.length * 10], borderColor: '#ec4899', backgroundColor: 'rgba(236,72,153,0.1)', fill: true, tension: 0.4, borderWidth: 3 }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { labels: { color: '#9ca3af' } } },
+      scales: {
+        y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#6b7280' } },
+        x: { grid: { display: false }, ticks: { color: '#6b7280' } }
+      }
+    }
+  });
+}
+
+// Init
+renderDashboard();
+</script>
+</body>
+</html>
